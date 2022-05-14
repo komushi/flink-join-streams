@@ -87,9 +87,7 @@ public class StreamingEtl {
 
 		int THREAD_WATERMARKING = Integer.parseInt(parameter.get("THREAD_WATERMARKING"));
 		int THREAD_WINDOWING = Integer.parseInt(parameter.get("THREAD_WINDOWING"));
-		int THREAD_LOGGING1 = Integer.parseInt(parameter.get("THREAD_LOGGING1"));
-		int THREAD_LOGGING2 = Integer.parseInt(parameter.get("THREAD_LOGGING2"));
-
+		int THREAD_LOGGING = Integer.parseInt(parameter.get("THREAD_LOGGING"));
 
 		// set up the streaming execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -123,26 +121,17 @@ public class StreamingEtl {
 			.setParallelism(THREAD_WATERMARKING)
 	        .name("Watermarking");
 
-		watermarkedStream.map(event -> {
-				LOG.warn("watermarkedStream: " + event.toString());
-				return event;
-			})
-			.setParallelism(THREAD_LOGGING1)
-	        .name("Logging1");
-
+			// watermarkedStream.map(event -> {
+			// 	LOG.debug("watermarkedStream: " + event.toString());
+			// 	return event;
+			// })
+			// .setParallelism(THREAD_LOGGING1)
+	  		// .name("Logging1");
 
 		DataStream<Row> resultStream = watermarkedStream
-            // .keyBy(new KeySelector<Row, String>() {
-            //     @Override
-            //     public String getKey(Row record) throws Exception {
-            //     	LOG.warn("keyBy: " + record.toString());
-            //         return String.valueOf(record.getField("vin"));
-            //     }
-            // })
             .keyBy(new KeySelector<Row, String>() {
                 @Override
                 public String getKey(Row record) throws Exception {
-                	LOG.warn("keyBy: " + record.toString());
                     return record.getField("vin").toString();
                 }
             })
@@ -153,15 +142,14 @@ public class StreamingEtl {
             .name("Window");
 
         resultStream.map((Row event) -> {
-                LOG.warn("windowed_value: " + event.toString());
+                LOG.info("windowed_value: " + event.toString());
                 return event;
             })
-        	.setParallelism(THREAD_LOGGING2)
+        	.setParallelism(THREAD_LOGGING)
         	.name("Logging2");
 
 
         resultStream.addSink(new DiscardingSink<>());
-
 
 		env.execute();
 	}
