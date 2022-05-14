@@ -50,6 +50,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.flink.types.Row;
 
 import com.amazonaws.kinesisanalytics.flink.streaming.etl.sim.CarSource;
+import com.amazonaws.kinesisanalytics.flink.streaming.etl.sim.SmsSource;
+import com.amazonaws.kinesisanalytics.flink.streaming.etl.sim.IisSource;
 
 import java.util.concurrent.TimeUnit;
 import java.time.temporal.ChronoUnit;
@@ -83,6 +85,12 @@ public class StreamingEtl {
 		int INTERVAL_EVENT_TYPE2 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE2"));
 		int INTERVAL_EVENT_TYPE3 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE3"));
 
+		int THREAD_WATERMARKING = Integer.parseInt(parameter.get("THREAD_WATERMARKING"));
+		int THREAD_WINDOWING = Integer.parseInt(parameter.get("THREAD_WINDOWING"));
+		int THREAD_LOGGING1 = Integer.parseInt(parameter.get("THREAD_LOGGING1"));
+		int THREAD_LOGGING2 = Integer.parseInt(parameter.get("THREAD_LOGGING2"));
+
+
 		// set up the streaming execution environment
 		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
@@ -97,9 +105,9 @@ public class StreamingEtl {
 			// 	.setParallelism(32)
 			// 	.name("Kinesis source");
 		} else {
-			events_first = env.addSource(CarSource.create(NUM_OF_CARS, 1, INTERVAL_EVENT_TYPE1)).name("events_first");
-			events_second = env.addSource(CarSource.create(NUM_OF_CARS, 2, INTERVAL_EVENT_TYPE2)).name("events_second");
-			events_third = env.addSource(CarSource.create(NUM_OF_CARS, 3, INTERVAL_EVENT_TYPE3)).name("events_third");
+			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1)).name("events_first");
+			events_second = env.addSource(IisSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2)).name("events_second");
+			events_third = env.addSource(SmsSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3)).name("events_third");
 		}
 
 		DataStream<Row> inputStream = (events_first.union(events_second)).union(events_third);
@@ -112,8 +120,15 @@ public class StreamingEtl {
 
 		DataStream<Row> watermarkedStream = inputStream
 			.assignTimestampsAndWatermarks(watermarkStrategy)
-			.setParallelism(10)
+			.setParallelism(THREAD_WATERMARKING)
 	        .name("Watermarking");
+
+		watermarkedStream.map(event -> {
+				LOG.warn("watermarkedStream: " + event.toString());
+				return event;
+			})
+			.setParallelism(THREAD_LOGGING1)
+	        .name("Logging1");
 
 		DataStream<Row> resultStream = watermarkedStream
             .keyBy(new KeySelector<Row, String>() {
@@ -124,12 +139,16 @@ public class StreamingEtl {
             })
             .window(TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.valueOf(WINDOW_SIZE_UOM))))
             .process(new ProcessTumblingWindowFunction())
-            .setParallelism(20);
+            .setParallelism(THREAD_WINDOWING)
+            .name("Window");
+            
 
         resultStream.map((Row event) -> {
                 LOG.warn("windowed_value: " + event.toString());
                 return event;
-            }).setParallelism(1);
+            })
+        	.setParallelism(THREAD_LOGGING2)
+        	.name("Logging2");
 
 
         resultStream.addSink(new DiscardingSink<>());

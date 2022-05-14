@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.Random;
 
 /** A simple in-memory source. */
-public class CarSource implements SourceFunction<Row> {
+public class SmsSource implements SourceFunction<Row> {
 
     private static final long serialVersionUID = 1L;
     private Integer[] speeds;
@@ -19,7 +19,7 @@ public class CarSource implements SourceFunction<Row> {
 
     private volatile boolean isRunning = true;
 
-    private CarSource(int numOfCars, int interval) {
+    private SmsSource(int numOfCars, int interval) {
         intervalInMs = interval;
         speeds = new Integer[numOfCars];
         distances = new Double[numOfCars];
@@ -27,8 +27,8 @@ public class CarSource implements SourceFunction<Row> {
         Arrays.fill(distances, 0d);
     }
 
-    public static CarSource create(int cars, int interval) {
-        return new CarSource(cars, interval);
+    public static SmsSource create(int cars, int interval) {
+        return new SmsSource(cars, interval);
     }
 
     @Override
@@ -55,8 +55,10 @@ public class CarSource implements SourceFunction<Row> {
                 row.setField("speed", speeds[carId]);
                 row.setField("distance", distances[carId]);
                 row.setField("eventTime", crtTime);
-                row.setField("sourceType", 1);
-                row.setField("source", "CAN");
+                row.setField("sourceType", 3);
+                row.setField("source", "SMS");
+                row.setField("attr31", 1);
+                row.setField("attr32", 1);
 
                 ctx.collectWithTimestamp(row, crtTime);
             }
