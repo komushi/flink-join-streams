@@ -23,8 +23,8 @@ This file has been modified to include additional dependencies.
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>com.amazonaws</groupId>
-	<artifactId>flink-kinesis-benchmark</artifactId>
-	<version>0.0.1</version>
+	<artifactId>flink-join-streams</artifactId>
+	<version>0.0.9</version>
 	<packaging>jar</packaging>
 
 	<properties>

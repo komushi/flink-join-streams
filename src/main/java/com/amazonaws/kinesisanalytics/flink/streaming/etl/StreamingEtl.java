@@ -7,29 +7,13 @@ import com.amazonaws.kinesisanalytics.flink.streaming.etl.function.KinesisSource
 import com.amazonaws.kinesisanalytics.flink.streaming.etl.utils.ParameterToolUtils;
 import com.amazonaws.kinesisanalytics.flink.streaming.etl.utils.FormatUtils;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
-// import com.fasterxml.jackson.databind.DeserializationFeature;
-// import com.fasterxml.jackson.databind.MapperFeature;
-// import com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.api.java.tuple.Tuple3;
-import org.apache.flink.api.java.tuple.Tuple4;
-import org.apache.flink.api.java.tuple.Tuple5;
-
 import java.time.Duration;
-import java.sql.Timestamp;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -50,16 +34,24 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 
+import org.apache.flink.api.java.functions.KeySelector;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
+import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction.Context;
+
+
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.kinesis.shaded.com.amazonaws.regions.Regions;
-
-
-
 
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.flink.types.Row;
+
+import com.amazonaws.kinesisanalytics.flink.streaming.etl.sim.CarSource;
+
+import java.util.concurrent.TimeUnit;
 
 public class StreamingEtl {
 	
@@ -81,79 +73,98 @@ public class StreamingEtl {
 		ParameterTool parameter = ParameterToolUtils.fromArgsAndApplicationProperties(args);
 
 		// retrieve parameters
-        // int s3UrlStreamThreads = Integer.parseInt(parameter.get("SOURCE_STREAM_THREADS"));
-        
+        long WINDOW_SIZE = Long.parseLong(parameter.get("WINDOW_SIZE"));
+        String WINDOW_SIZE_UOM = parameter.get("WINDOW_SIZE_UOM");
+        int NUM_OF_CARS = Integer.parseInt(parameter.get("NUM_OF_CARS"));
+		long WATERMARK_DELAY = Long.parseLong(parameter.get("WATERMARK_DELAY"));
+		String WATERMARK_DELAY_UOM = parameter.get("WATERMARK_DELAY_UOM");
+		int INTERVAL_EVENT_TYPE1 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE1"));
+		int INTERVAL_EVENT_TYPE2 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE2"));
+		int INTERVAL_EVENT_TYPE3 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE3"));
+
 		// set up the streaming execution environment
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		LOG.warn("******zzzzzzzzz****Parallelism is {}***********", env.getParallelism()); 
+		StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 		env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
-		env.getConfig().setAutoWatermarkInterval(10);
-		// LOG.info("******zzzzzzzzz****tStreamTimeCharacteristic is {}***********", env.getStreamTimeCharacteristic());
+
+		DataStream<Row> events_first = null;
+		DataStream<Row> events_second = null;
+		DataStream<Row> events_third = null;
 
 		// check stream name
-		if ( !parameter.has("INPUT_KDS_STREAM")) {
-			throw new RuntimeException("zzz You must specify a single source named INPUT_KDS_STREAM");
+		if (parameter.has("INPUT_KDS_STREAM_FIRST") && parameter.has("INPUT_KDS_STREAM_SECOND") && parameter.has("INPUT_KDS_STREAM_THRID")) {
+			// events_first = env.addSource(KinesisSourceFunction.getKinesisSource(parameter, DEFAULT_REGION_NAME))
+			// 	.setParallelism(32)
+			// 	.name("Kinesis source");
+		} else {
+			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1, )).name("events_first");
+			events_second = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2,)).name("events_second");
+			events_third = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3,)).name("events_third");
 		}
 
-		ObjectMapper jsonParser = new ObjectMapper();
+		DataStream<Row> inputStream = (events_first.union(events_second)).union(events_third);
 
-		// task1: get stream from KinesisStream 
-		DataStream<ObjectNode> events = env.addSource(KinesisSourceFunction.getKinesisSource(parameter, DEFAULT_REGION_NAME))
-					    .setParallelism(32)
-						.name("Kinesis source");
-
-        DataStream<Tuple4<String, Timestamp, String, Long>> inputStream = events
-			.map((ObjectNode object) -> {
-				//For debugging input
-				LOG.warn(object.toString());
-
-				JsonNode jsonNode = jsonParser.readValue(object.toString(), JsonNode.class);
-
-				Timestamp eventTime = FormatUtils.getTimestamp(jsonNode.get("eventTime").asText());
-
-				return new Tuple4<String, Timestamp, String, Long>(
-					jsonNode.get("vin").asText(),
-					eventTime,
-					jsonNode.get("key").asText(),
-					Long.valueOf(jsonNode.get("value").asText().trim())
-				);
-			}).returns(Types.TUPLE(Types.STRING, Types.SQL_TIMESTAMP, Types.STRING, Types.LONG))
-			.setParallelism(64)
-			.name("Tuple transform");
-
-		WatermarkStrategy<Tuple4<String, Timestamp, String, Long>> watermarkStrategy = WatermarkStrategy
-	        .<Tuple4<String, Timestamp, String, Long>>forBoundedOutOfOrderness(Duration.ofSeconds(0))
+		WatermarkStrategy<Row> watermarkStrategy = WatermarkStrategy
+	        .<Row>forBoundedOutOfOrderness(Duration.of(WATERMARK_DELAY, ChronoUnit.valueOf(WATERMARK_DELAY_UOM)))
 	        .withTimestampAssigner((event, timestamp) -> {
-	        	return event.f1.getTime();
+	        	return Long.parseLong(String.valueOf(event.getField("eventTime")));
 	        });
 
-		DataStream<Tuple4<String, Timestamp, String, Long>> watermarkedStream = inputStream
+		DataStream<Row> watermarkedStream = inputStream
 			.assignTimestampsAndWatermarks(watermarkStrategy)
-			.setParallelism(30)
+			.setParallelism(10)
 	        .name("Watermarking");
 
-        inputStream.addSink(new DiscardingSink<>());
+		DataStream<Row> resultStream = watermarkedStream
+            .keyBy(new KeySelector<Row, String>() {
+                @Override
+                public String getKey(Row event) throws Exception {
+                    return String.valueOf(event.getField("vin"));
+                }
+            })
+            .window(TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.valueOf(WINDOW_SIZE_UOM))))
+            .process(new ProcessTumblingWindowFunction())
+            .setParallelism(20);
 
-		// Sink bigdata to KDS=>KDF=>S3 
- 	// 	if (parameter.has("OUTPUT_KDS_STREAM")) {
-	 //        FilterFunction<BigDataAllModel> filterNormal = new FilterFunction<BigDataAllModel>() {
-	 //        	private static final long serialVersionUID = 1L;
-	 //            @Override
-	 //            public boolean filter(BigDataAllModel value) {
-	 //                return value.getStatus() == 0;
-	 //            }
-	 //        };
-	        
-		// 	decodedStream.filter(filterNormal)
-		// 		.addSink(KinesisSinkFunction.getKinesisSink(parameter, DEFAULT_REGION_NAME))
-		// 		.setParallelism(printSinkThreads)
-		// 		.name("Kinesis sink");
-		// }
+        resultStream.map((Row event) -> {
+                LOG.warn("windowed_value: " + event.toString());
+                return event;
+            }).setParallelism(1);
 
-		
- 
+
+        resultStream.addSink(new DiscardingSink<>());
 
 		env.execute();
 	}
 
+    private static class ProcessTumblingWindowFunction
+            extends ProcessWindowFunction<Row, Row, String, TimeWindow> {
+
+        @Override
+        public void process(String key,
+                            Context context,
+                            Iterable<Row> input,
+                            Collector<Row> out) {
+
+	        // sort the input with createdOn
+	        TreeMap<Long, Row> treeMap = new TreeMap<>();
+	        
+	        input.forEach(event -> {
+	            treeMap.put(Long.parseLong(String.valueOf(event.getField("eventTime"))), event);
+	        });
+
+	        int cnt = 0;
+
+	        for(SortedMap.Entry<Long, Row> entry : treeMap.entrySet()) {
+	            Row event = entry.getValue();
+	            cnt++;
+
+	            event.setField("cnt", cnt);
+	            event.setField("windowStart", context.window().getStart());
+
+	            LOG.warn("ProcessWindowFunction: " + event.toString());
+	            
+	            out.collect(event);
+	        }
+        }
+    }
 }
