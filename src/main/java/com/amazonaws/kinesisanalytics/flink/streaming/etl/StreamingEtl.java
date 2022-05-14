@@ -130,18 +130,27 @@ public class StreamingEtl {
 			.setParallelism(THREAD_LOGGING1)
 	        .name("Logging1");
 
+
 		DataStream<Row> resultStream = watermarkedStream
+            // .keyBy(new KeySelector<Row, String>() {
+            //     @Override
+            //     public String getKey(Row record) throws Exception {
+            //     	LOG.warn("keyBy: " + record.toString());
+            //         return String.valueOf(record.getField("vin"));
+            //     }
+            // })
             .keyBy(new KeySelector<Row, String>() {
                 @Override
-                public String getKey(Row event) throws Exception {
-                    return String.valueOf(event.getField("vin"));
+                public String getKey(Row record) throws Exception {
+                	LOG.warn("keyBy: " + record.toString());
+                    return record.getField("vin").toString();
                 }
             })
+            // .keyBy(record -> record.getField("vin").toString())
             .window(TumblingEventTimeWindows.of(Time.of(WINDOW_SIZE, TimeUnit.valueOf(WINDOW_SIZE_UOM))))
             .process(new ProcessTumblingWindowFunction())
             .setParallelism(THREAD_WINDOWING)
             .name("Window");
-            
 
         resultStream.map((Row event) -> {
                 LOG.warn("windowed_value: " + event.toString());
@@ -152,6 +161,7 @@ public class StreamingEtl {
 
 
         resultStream.addSink(new DiscardingSink<>());
+
 
 		env.execute();
 	}
@@ -171,6 +181,8 @@ public class StreamingEtl {
 	        input.forEach(event -> {
 	            treeMap.put(Long.parseLong(String.valueOf(event.getField("eventTime"))), event);
 	        });
+
+	        LOG.warn("ProcessWindowFunctionTreeMap: " + treeMap.size());
 
 	        int cnt = 0;
 

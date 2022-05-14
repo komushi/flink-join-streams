@@ -51,7 +51,7 @@ public class CarSource implements SourceFunction<Row> {
 
                 Row row = Row.withNames();
                 
-                row.setField("vin", carId);
+                row.setField("vin", "v" + carId);
                 row.setField("speed", speeds[carId]);
                 row.setField("distance", distances[carId]);
                 row.setField("eventTime", crtTime);
