@@ -52,6 +52,7 @@ import org.apache.flink.types.Row;
 import com.amazonaws.kinesisanalytics.flink.streaming.etl.sim.CarSource;
 
 import java.util.concurrent.TimeUnit;
+import java.time.temporal.ChronoUnit;
 
 public class StreamingEtl {
 	
@@ -96,9 +97,9 @@ public class StreamingEtl {
 			// 	.setParallelism(32)
 			// 	.name("Kinesis source");
 		} else {
-			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1, )).name("events_first");
-			events_second = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2,)).name("events_second");
-			events_third = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3,)).name("events_third");
+			events_first = env.addSource(CarSource.create(NUM_OF_CARS, 1, INTERVAL_EVENT_TYPE1)).name("events_first");
+			events_second = env.addSource(CarSource.create(NUM_OF_CARS, 2, INTERVAL_EVENT_TYPE2)).name("events_second");
+			events_third = env.addSource(CarSource.create(NUM_OF_CARS, 3, INTERVAL_EVENT_TYPE3)).name("events_third");
 		}
 
 		DataStream<Row> inputStream = (events_first.union(events_second)).union(events_third);

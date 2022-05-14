@@ -24,7 +24,7 @@ This file has been modified to include additional dependencies.
 
 	<groupId>com.amazonaws</groupId>
 	<artifactId>flink-join-streams</artifactId>
-	<version>0.0.9</version>
+	<version>0.1.0</version>
 	<packaging>jar</packaging>
 
 	<properties>

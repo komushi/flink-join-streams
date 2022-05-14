@@ -14,13 +14,15 @@ public class CarSource implements SourceFunction<Row> {
     private Integer[] speeds;
     private Double[] distances;
     private int sourceType;
+    private int intervalInMs;
 
     private Random rand = new Random();
 
     private volatile boolean isRunning = true;
 
-    private CarSource(int numOfCars, int type) {
+    private CarSource(int numOfCars, int type, int interval) {
         sourceType = type;
+        intervalInMs = interval;
         speeds = new Integer[numOfCars];
         distances = new Double[numOfCars];
         Arrays.fill(speeds, 50);
@@ -28,7 +30,7 @@ public class CarSource implements SourceFunction<Row> {
     }
 
     public static CarSource create(int cars, int type, int interval) {
-        return new CarSource(cars, type);
+        return new CarSource(cars, type, interval);
     }
 
     @Override
@@ -37,7 +39,7 @@ public class CarSource implements SourceFunction<Row> {
 
         while (isRunning) {
 
-            Thread.sleep(interval);
+            Thread.sleep(intervalInMs);
             
             for (int carId = 0; carId < speeds.length; carId++) {
                 if (rand.nextBoolean()) {
