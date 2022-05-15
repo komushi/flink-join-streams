@@ -142,7 +142,7 @@ public class StreamingEtl {
             .name("Window");
 
         resultStream.map((Row event) -> {
-                LOG.info("windowed_value: " + event.toString());
+                LOG.warn("windowed_value: " + event.toString());
                 return event;
             })
         	.setParallelism(THREAD_LOGGING)
@@ -170,7 +170,7 @@ public class StreamingEtl {
 	            treeMap.put(Long.parseLong(String.valueOf(event.getField("eventTime"))), event);
 	        });
 
-	        LOG.warn("ProcessWindowFunctionTreeMap: " + treeMap.size());
+	        LOG.info("ProcessWindowFunctionTreeMap: " + treeMap.size());
 
 	        int cnt = 0;
 
@@ -181,7 +181,7 @@ public class StreamingEtl {
 	            event.setField("cnt", cnt);
 	            event.setField("windowStart", context.window().getStart());
 
-	            LOG.warn("ProcessWindowFunction: " + event.toString());
+	            LOG.info("ProcessWindowFunction: " + event.toString());
 	            
 	            out.collect(event);
 	        }
