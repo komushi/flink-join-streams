@@ -14,26 +14,30 @@ public class SmsSource implements SourceFunction<Row> {
     private Integer[] speeds;
     private Double[] distances;
     private int intervalInMs;
+    private int delayInMs;
 
     private Random rand = new Random();
 
     private volatile boolean isRunning = true;
 
-    private SmsSource(int numOfCars, int interval) {
+    private SmsSource(int numOfCars, int interval, int delay) {
         intervalInMs = interval;
+        delayInMs = delay;
         speeds = new Integer[numOfCars];
         distances = new Double[numOfCars];
         Arrays.fill(speeds, 50);
         Arrays.fill(distances, 0d);
     }
 
-    public static SmsSource create(int cars, int interval) {
-        return new SmsSource(cars, interval);
+    public static SmsSource create(int cars, int interval, int delay) {
+        return new SmsSource(cars, interval, delay);
     }
 
     @Override
     public void run(SourceFunction.SourceContext<Row> ctx)
             throws Exception {
+
+        Thread.sleep(delayInMs);
 
         while (isRunning) {
 
@@ -47,7 +51,7 @@ public class SmsSource implements SourceFunction<Row> {
                 }
                 distances[carId] += speeds[carId] / 3.6d;
                 
-                long crtTime = System.currentTimeMillis() - 2;
+                long crtTime = System.currentTimeMillis() - 2 - delayInMs;
 
                 Row row = Row.withNames();
                 
@@ -63,7 +67,7 @@ public class SmsSource implements SourceFunction<Row> {
                 ctx.collectWithTimestamp(row, crtTime);
             }
 
-            ctx.emitWatermark(new Watermark(System.currentTimeMillis()));
+            ctx.emitWatermark(new Watermark(System.currentTimeMillis() - delayInMs));
         }
     }
 

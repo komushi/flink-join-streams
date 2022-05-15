@@ -81,9 +81,14 @@ public class StreamingEtl {
         int NUM_OF_CARS = Integer.parseInt(parameter.get("NUM_OF_CARS"));
 		long WATERMARK_DELAY = Long.parseLong(parameter.get("WATERMARK_DELAY"));
 		String WATERMARK_DELAY_UOM = parameter.get("WATERMARK_DELAY_UOM");
+		
 		int INTERVAL_EVENT_TYPE1 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE1"));
 		int INTERVAL_EVENT_TYPE2 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE2"));
 		int INTERVAL_EVENT_TYPE3 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE3"));
+
+		int DELAY_EVENT_TYPE1 = Integer.parseInt(parameter.get("DELAY_EVENT_TYPE1"));
+		int DELAY_EVENT_TYPE2 = Integer.parseInt(parameter.get("DELAY_EVENT_TYPE2"));
+		int DELAY_EVENT_TYPE3 = Integer.parseInt(parameter.get("DELAY_EVENT_TYPE3"));
 
 		int THREAD_WATERMARKING = Integer.parseInt(parameter.get("THREAD_WATERMARKING"));
 		int THREAD_WINDOWING = Integer.parseInt(parameter.get("THREAD_WINDOWING"));
@@ -103,9 +108,9 @@ public class StreamingEtl {
 			// 	.setParallelism(32)
 			// 	.name("Kinesis source");
 		} else {
-			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1)).name("events_first");
-			events_second = env.addSource(IisSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2)).name("events_second");
-			events_third = env.addSource(SmsSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3)).name("events_third");
+			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1, DELAY_EVENT_TYPE1)).name("events_first");
+			events_second = env.addSource(IisSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2, DELAY_EVENT_TYPE2)).name("events_second");
+			events_third = env.addSource(SmsSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3, DELAY_EVENT_TYPE3)).name("events_third");
 		}
 
 		DataStream<Row> inputStream = (events_first.union(events_second)).union(events_third);
@@ -119,14 +124,13 @@ public class StreamingEtl {
 		DataStream<Row> watermarkedStream = inputStream
 			.assignTimestampsAndWatermarks(watermarkStrategy)
 			.setParallelism(THREAD_WATERMARKING)
-	        .name("Watermarking");
-
-			// watermarkedStream.map(event -> {
-			// 	LOG.debug("watermarkedStream: " + event.toString());
-			// 	return event;
-			// })
-			// .setParallelism(THREAD_LOGGING1)
-	  		// .name("Logging1");
+	        .name("Watermarking")
+	        .map(event -> {
+				LOG.warn("watermarkedStream: " + event.toString());
+				return event;
+			})
+			.setParallelism(THREAD_WATERMARKING)
+	  		.name("Logging Watermarking");
 
 		DataStream<Row> resultStream = watermarkedStream
             .keyBy(new KeySelector<Row, String>() {

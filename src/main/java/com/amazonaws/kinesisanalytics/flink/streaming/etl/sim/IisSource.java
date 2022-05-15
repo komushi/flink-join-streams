@@ -14,26 +14,30 @@ public class IisSource implements SourceFunction<Row> {
     private Integer[] speeds;
     private Double[] distances;
     private int intervalInMs;
+    private int delayInMs;
 
     private Random rand = new Random();
 
     private volatile boolean isRunning = true;
 
-    private IisSource(int numOfCars, int interval) {
+    private IisSource(int numOfCars, int interval, int delay) {
         intervalInMs = interval;
+        delayInMs = delay;
         speeds = new Integer[numOfCars];
         distances = new Double[numOfCars];
         Arrays.fill(speeds, 50);
         Arrays.fill(distances, 0d);
     }
 
-    public static IisSource create(int cars, int interval) {
-        return new IisSource(cars, interval);
+    public static IisSource create(int cars, int interval, int delay) {
+        return new IisSource(cars, interval, delay);
     }
 
     @Override
     public void run(SourceFunction.SourceContext<Row> ctx)
             throws Exception {
+
+        Thread.sleep(delayInMs);
 
         while (isRunning) {
 
@@ -47,7 +51,7 @@ public class IisSource implements SourceFunction<Row> {
                 }
                 distances[carId] += speeds[carId] / 3.6d;
                 
-                long crtTime = System.currentTimeMillis() - 1;
+                long crtTime = System.currentTimeMillis() - 1 - delayInMs;
 
                 Row row = Row.withNames();
                 
@@ -62,7 +66,7 @@ public class IisSource implements SourceFunction<Row> {
                 ctx.collectWithTimestamp(row, crtTime);
             }
 
-            ctx.emitWatermark(new Watermark(System.currentTimeMillis()));
+            ctx.emitWatermark(new Watermark(System.currentTimeMillis() - delayInMs));
         }
     }
 
