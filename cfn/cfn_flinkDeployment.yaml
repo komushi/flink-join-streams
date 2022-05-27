@@ -1,0 +1,222 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates KinesisApp
+
+# Flink application Resources
+# Create KinesisApp: Analytics
+
+Parameters:
+
+  # Flink application
+  KinesisAnalyticsName:
+    Type: String
+    Default: vsocAnalytics
+    
+  FlinkJarS3Bucket:
+    Type: String
+    Default: flink-jar-bucket
+
+  FlinkJarName:
+    Type: String
+    Default: flink-join-streams-0.1.jar
+
+  DelayEventType1:
+    Type: String
+    Default: 60000
+    
+  DelayEventType2:
+    Type: String
+    Default: 0
+
+  DelayEventType3:
+    Type: String
+    Default: 0
+    
+  IntervalEventType1:
+    Type: String
+    Default: 500
+
+  IntervalEventType2:
+    Type: String
+    Default: 500
+
+  IntervalEventType3:
+    Type: String
+    Default: 500
+
+  NumOfCars:
+    Type: String
+    Default: 2
+    
+  WindowSize:
+    Type: String
+    Default: 100
+    
+  WindowSizeUOM:
+    Type: String
+    Default: MILLISECONDS
+    
+  WatermarkDelay:
+    Type: String
+    Default: 60100
+
+  WatermarkDelayUOM:
+    Type: String
+    Default: MILLIS
+    
+  ThreaWatermarking:
+    Type: String
+    Default: 32
+    
+  ThreadWindowing:
+    Type: String
+    Default: 64
+    
+  ThreadLogging:
+    Type: String
+    Default: 1
+
+  ParallelismValue:
+    Type: String
+    Default: 64
+    
+  ParallelismPerKPUValue:
+    Type: String
+    Default: 2
+    
+  AutoScalingValue:
+    Type: String
+    Default: false
+    
+Resources:
+  
+  ####Flink application ###################################################################################
+  VsocKdaLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      RetentionInDays: 7
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  VsocKdaLogStream:
+    Type: 'AWS::Logs::LogStream'
+    Properties:
+      LogGroupName: !Ref VsocKdaLogGroup
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+
+  VsocKdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: kinesisanalytics.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+       - arn:aws:iam::aws:policy/AmazonKinesisFullAccess
+      Policies:
+        - PolicyName: vsoc-s3-code-access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  - !Sub "arn:aws:s3:::${FlinkJarS3Bucket}/${FlinkJarName}"
+
+  VsocKdaRoleDefaultPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:GetObject*'
+              - 's3:GetBucket*'
+              - 's3:List*'
+              - 's3:DeleteObject*'
+              - 's3:PutObject*'
+              - 's3:Abort*'
+            Effect: Allow
+            Resource:
+              - !Sub arn:aws:s3:::${FlinkJarS3Bucket}
+              - !Sub arn:aws:s3:::${FlinkJarS3Bucket}/*
+          - Action: 'cloudwatch:PutMetricData'
+            Effect: Allow
+            Resource: '*'
+          - Action:
+              - 'logs:DescribeLogStreams'
+              - 'logs:DescribeLogGroups'
+            Effect: Allow
+            Resource:
+              - !GetAtt 
+                - VsocKdaLogGroup
+                - Arn
+              - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+          - Action: 'logs:PutLogEvents'
+            Effect: Allow
+            Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${VsocKdaLogGroup}:log-stream:${VsocKdaLogStream}
+        Version: 2012-10-17
+      PolicyName: VsocKdaRoleDefaultPolicy
+      Roles:
+        - !Ref VsocKdaRole
+                  
+  VsocKdaApplication:
+    Type: 'AWS::KinesisAnalyticsV2::Application'
+    Properties:
+      ApplicationName: !Sub '${KinesisAnalyticsName}'
+      RuntimeEnvironment: FLINK-1_13
+      ServiceExecutionRole: !GetAtt VsocKdaRole.Arn
+      ApplicationConfiguration:
+        ApplicationCodeConfiguration:
+          CodeContent:
+            S3ContentLocation:
+              BucketARN: !Sub arn:aws:s3:::${FlinkJarS3Bucket}
+              FileKey: !Sub ${FlinkJarName}
+          CodeContentType: ZIPFILE
+        ApplicationSnapshotConfiguration:
+          SnapshotsEnabled: false
+        EnvironmentProperties:
+          PropertyGroups:
+            - PropertyGroupId: FlinkApplicationProperties
+              PropertyMap:
+                DELAY_EVENT_TYPE1: !Ref DelayEventType1
+                DELAY_EVENT_TYPE2: !Ref DelayEventType2
+                DELAY_EVENT_TYPE3: !Ref DelayEventType3
+                INTERVAL_EVENT_TYPE1: !Ref IntervalEventType1
+                INTERVAL_EVENT_TYPE2: !Ref IntervalEventType2
+                INTERVAL_EVENT_TYPE3: !Ref IntervalEventType3
+                NUM_OF_CARS: !Ref NumOfCars
+                WINDOW_SIZE: !Ref WindowSize
+                WINDOW_SIZE_UOM: !Ref WindowSizeUOM
+                WATERMARK_DELAY: !Ref WatermarkDelay
+                WATERMARK_DELAY_UOM: !Ref WatermarkDelayUOM
+            - PropertyGroupId: FlinkParallelismProperties
+              PropertyMap:
+                THREAD_WATERMARKING: !Ref ThreaWatermarking
+                THREAD_WINDOWING: !Ref ThreadWindowing
+                THREAD_LOGGING: !Ref ThreadLogging
+        FlinkApplicationConfiguration:
+          CheckpointConfiguration:
+            CheckpointInterval: 60000
+            CheckpointingEnabled: true
+            ConfigurationType: CUSTOM
+            MinPauseBetweenCheckpoints: 60000
+          MonitoringConfiguration:
+            ConfigurationType: CUSTOM
+            LogLevel: INFO
+            MetricsLevel: TASK
+          ParallelismConfiguration:
+            AutoScalingEnabled: !Ref AutoScalingValue
+            ConfigurationType: CUSTOM
+            Parallelism: !Ref ParallelismValue
+            ParallelismPerKPU: !Ref ParallelismPerKPUValue
+      
+  VsocKdsFlinkProducerLogging:
+    Type: 'AWS::KinesisAnalyticsV2::ApplicationCloudWatchLoggingOption'
+    Properties:
+      ApplicationName: !Ref VsocKdaApplication
+      CloudWatchLoggingOption:
+        LogStreamARN: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${VsocKdaLogGroup}:log-stream:${VsocKdaLogStream}
