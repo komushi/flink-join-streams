@@ -9,7 +9,7 @@ Parameters:
   # Flink application
   KinesisAnalyticsName:
     Type: String
-    Default: vsocAnalytics
+    Default: awsAnalytics
     
   FlinkJarS3Bucket:
     Type: String
@@ -90,21 +90,21 @@ Parameters:
 Resources:
   
   ####Flink application ###################################################################################
-  VsocKdaLogGroup:
+  AwsKdaLogGroup:
     Type: 'AWS::Logs::LogGroup'
     Properties:
       RetentionInDays: 7
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
-  VsocKdaLogStream:
+  AwsKdaLogStream:
     Type: 'AWS::Logs::LogStream'
     Properties:
-      LogGroupName: !Ref VsocKdaLogGroup
+      LogGroupName: !Ref AwsKdaLogGroup
     UpdateReplacePolicy: Delete
     DeletionPolicy: Delete
 
-  VsocKdaRole:
+  AwsKdaRole:
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
@@ -117,7 +117,7 @@ Resources:
       ManagedPolicyArns:
        - arn:aws:iam::aws:policy/AmazonKinesisFullAccess
       Policies:
-        - PolicyName: vsoc-s3-code-access
+        - PolicyName: Aws-s3-code-access
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -127,7 +127,7 @@ Resources:
                 Resource:
                   - !Sub "arn:aws:s3:::${FlinkJarS3Bucket}/${FlinkJarName}"
 
-  VsocKdaRoleDefaultPolicy:
+  AwsKdaRoleDefaultPolicy:
     Type: 'AWS::IAM::Policy'
     Properties:
       PolicyDocument:
@@ -152,23 +152,23 @@ Resources:
             Effect: Allow
             Resource:
               - !GetAtt 
-                - VsocKdaLogGroup
+                - AwsKdaLogGroup
                 - Arn
               - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
           - Action: 'logs:PutLogEvents'
             Effect: Allow
-            Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${VsocKdaLogGroup}:log-stream:${VsocKdaLogStream}
+            Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${AwsKdaLogGroup}:log-stream:${AwsKdaLogStream}
         Version: 2012-10-17
-      PolicyName: VsocKdaRoleDefaultPolicy
+      PolicyName: AwsKdaRoleDefaultPolicy
       Roles:
-        - !Ref VsocKdaRole
+        - !Ref AwsKdaRole
                   
-  VsocKdaApplication:
+  AwsKdaApplication:
     Type: 'AWS::KinesisAnalyticsV2::Application'
     Properties:
       ApplicationName: !Sub '${KinesisAnalyticsName}'
       RuntimeEnvironment: FLINK-1_13
-      ServiceExecutionRole: !GetAtt VsocKdaRole.Arn
+      ServiceExecutionRole: !GetAtt AwsKdaRole.Arn
       ApplicationConfiguration:
         ApplicationCodeConfiguration:
           CodeContent:
@@ -214,9 +214,9 @@ Resources:
             Parallelism: !Ref ParallelismValue
             ParallelismPerKPU: !Ref ParallelismPerKPUValue
       
-  VsocKdsFlinkProducerLogging:
+  AwsKdsFlinkProducerLogging:
     Type: 'AWS::KinesisAnalyticsV2::ApplicationCloudWatchLoggingOption'
     Properties:
-      ApplicationName: !Ref VsocKdaApplication
+      ApplicationName: !Ref AwsKdaApplication
       CloudWatchLoggingOption:
-        LogStreamARN: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${VsocKdaLogGroup}:log-stream:${VsocKdaLogStream}
+        LogStreamARN: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:${AwsKdaLogGroup}:log-stream:${AwsKdaLogStream}

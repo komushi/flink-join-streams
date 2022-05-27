@@ -7,15 +7,15 @@ export CF_FlinkJarS3Bucket=vsco-module-bucket
 export CF_FlinkJarName=flink-join-streams-0.0.0.jar
 
 #Flink input Resources
-export CF_InputKdsStreamFirst=VsocStreamCan
-export CF_InputKdsStreamSecond=VsocStreamIis
-export CF_InputKdsStreamThird=VsocStreamSms
+export CF_InputKdsStreamFirst=AwsStreamCan
+export CF_InputKdsStreamSecond=AwsStreamIis
+export CF_InputKdsStreamThird=AwsStreamSms
 export CF_KdsInitialPosition=LATEST
 
 # Flink output Resources
 
 # Flink application
-export CF_KinesisAnalyticsName=vsocAnalytics
+export CF_KinesisAnalyticsName=AwsAnalytics
 export CF_WindowSize=100
 export CF_WindowSizeUOM=MILLISECONDS
 export CF_WatermarkDelay=60100
