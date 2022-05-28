@@ -82,6 +82,8 @@ public class StreamingEtl {
 		long WATERMARK_DELAY = Long.parseLong(parameter.get("WATERMARK_DELAY"));
 		String WATERMARK_DELAY_UOM = parameter.get("WATERMARK_DELAY_UOM");
 		
+		int FLASHBACK_LENGTH = Integer.parseInt(parameter.get("FLASHBACK_LENGTH"));
+
 		int INTERVAL_EVENT_TYPE1 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE1"));
 		int INTERVAL_EVENT_TYPE2 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE2"));
 		int INTERVAL_EVENT_TYPE3 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE3"));
@@ -108,9 +110,9 @@ public class StreamingEtl {
 			// 	.setParallelism(32)
 			// 	.name("Kinesis source");
 		} else {
-			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1, DELAY_EVENT_TYPE1)).name("events_first");
-			events_second = env.addSource(IisSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2, DELAY_EVENT_TYPE2)).name("events_second");
-			events_third = env.addSource(SmsSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3, DELAY_EVENT_TYPE3)).name("events_third");
+			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1, FLASHBACK_LENGTH, DELAY_EVENT_TYPE1)).name("events_first");
+			events_second = env.addSource(IisSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2, FLASHBACK_LENGTH, DELAY_EVENT_TYPE2)).name("events_second");
+			events_third = env.addSource(SmsSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3, FLASHBACK_LENGTH, DELAY_EVENT_TYPE3)).name("events_third");
 		}
 
 		DataStream<Row> inputStream = (events_first.union(events_second)).union(events_third);

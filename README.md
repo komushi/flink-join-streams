@@ -63,6 +63,7 @@ fields @timestamp, @message
 | Group 'FlinkApplicationProperties'| DELAY_EVENT_TYPE1 | 60000 | In ms (CarSource) |
 |                                   | DELAY_EVENT_TYPE2 | 0 | In ms (IisSource) |
 |                                   | DELAY_EVENT_TYPE3 | 0 | In ms (SmsSource) |
+|                                   | FLASHBACK_LENGTH | 0 | Flashback in ms  |
 |                                   | INTERVAL_EVENT_TYPE1 | 500 | Interval of event type 1 (CarSource) |
 |                                   | INTERVAL_EVENT_TYPE2 | 500 | Interval of event type 2 (IisSource) |
 |                                   | INTERVAL_EVENT_TYPE3 | 500 | Interval of event type 3 (SmsSource) |
@@ -70,4 +71,4 @@ fields @timestamp, @message
 |                                   | WATERMARK_DELAY |60100 | Watermark Delay |
 |                                   | WATERMARK_DELAY_UOM | MILLIS | Watermark Delay UOM |
 |                                   | WINDOW_SIZE | 100 | Window size |
-|                                   | WINDOW_SIZE_UOM | 100 | Window size UOM |
+|                                   | WINDOW_SIZE_UOM | MILLISECONDS | Window size UOM |

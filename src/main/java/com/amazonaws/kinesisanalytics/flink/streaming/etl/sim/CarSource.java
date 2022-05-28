@@ -15,13 +15,15 @@ public class CarSource implements SourceFunction<Row> {
     private Double[] distances;
     private int intervalInMs;
     private int delayInMs;
+    private int flashbackInMs;
 
     private Random rand = new Random();
 
     private volatile boolean isRunning = true;
 
-    private CarSource(int numOfCars, int interval, int delay) {
+    private CarSource(int numOfCars, int interval, int flashback, int delay) {
         intervalInMs = interval;
+        flashbackInMs = flashback;
         delayInMs = delay;
         speeds = new Integer[numOfCars];
         distances = new Double[numOfCars];
@@ -29,8 +31,8 @@ public class CarSource implements SourceFunction<Row> {
         Arrays.fill(distances, 0d);
     }
 
-    public static CarSource create(int cars, int interval, int delay) {
-        return new CarSource(cars, interval, delay);
+    public static CarSource create(int cars, int interval, int flashback, int delay) {
+        return new CarSource(cars, interval, flashback, delay);
     }
 
     @Override
@@ -51,7 +53,7 @@ public class CarSource implements SourceFunction<Row> {
                 }
                 distances[carId] += speeds[carId] / 3.6d;
                 
-                long crtTime = System.currentTimeMillis() - delayInMs;
+                long crtTime = System.currentTimeMillis() - flashbackInMs - delayInMs;
 
                 Row row = Row.withNames();
                 
