@@ -15,24 +15,26 @@ public class IisSource implements SourceFunction<Row> {
     private Double[] distances;
     private int intervalInMs;
     private int delayInMs;
-    private int flashbackInMs;
+    private long crtTime;
+    private Boolean isFastfoward;
 
     private Random rand = new Random();
 
     private volatile boolean isRunning = true;
 
-    private IisSource(int numOfCars, int interval, int flashback, int delay) {
+    private IisSource(int numOfCars, int interval, int flashback, int delay, Boolean fastfoward) {
         intervalInMs = interval;
-        flashbackInMs = flashback;
         delayInMs = delay;
+        crtTime = System.currentTimeMillis() - flashback - 1;
+        isFastfoward = fastfoward;
         speeds = new Integer[numOfCars];
         distances = new Double[numOfCars];
         Arrays.fill(speeds, 50);
         Arrays.fill(distances, 0d);
     }
 
-    public static IisSource create(int cars, int interval, int flashback, int delay) {
-        return new IisSource(cars, interval, flashback, delay);
+    public static IisSource create(int cars, int interval, int flashback, int delay, Boolean fastfoward) {
+        return new IisSource(cars, interval, flashback, delay, fastfoward);
     }
 
     @Override
@@ -43,7 +45,13 @@ public class IisSource implements SourceFunction<Row> {
 
         while (isRunning) {
 
-            Thread.sleep(intervalInMs);
+            if (!isFastfoward) {
+                Thread.sleep(intervalInMs);    
+            } else {
+                Thread.sleep(10);
+            }
+
+            crtTime = crtTime + intervalInMs;
             
             for (int carId = 0; carId < speeds.length; carId++) {
                 if (rand.nextBoolean()) {
@@ -52,8 +60,6 @@ public class IisSource implements SourceFunction<Row> {
                     speeds[carId] = Math.max(0, speeds[carId] - 5);
                 }
                 distances[carId] += speeds[carId] / 3.6d;
-                
-                long crtTime = System.currentTimeMillis() - 1 - flashbackInMs - delayInMs;
 
                 Row row = Row.withNames();
                 
@@ -68,7 +74,7 @@ public class IisSource implements SourceFunction<Row> {
                 ctx.collectWithTimestamp(row, crtTime);
             }
 
-            ctx.emitWatermark(new Watermark(System.currentTimeMillis() - delayInMs));
+            ctx.emitWatermark(new Watermark(crtTime + 1));
         }
     }
 

@@ -64,6 +64,7 @@ fields @timestamp, @message
 |                                   | DELAY_EVENT_TYPE2 | 0 | In ms (IisSource) |
 |                                   | DELAY_EVENT_TYPE3 | 0 | In ms (SmsSource) |
 |                                   | FLASHBACK_LENGTH | 0 | Flashback in ms  |
+|                                   | IS_FASTFORWARD | true | Enable fastforward  |
 |                                   | INTERVAL_EVENT_TYPE1 | 500 | Interval of event type 1 (CarSource) |
 |                                   | INTERVAL_EVENT_TYPE2 | 500 | Interval of event type 2 (IisSource) |
 |                                   | INTERVAL_EVENT_TYPE3 | 500 | Interval of event type 3 (SmsSource) |

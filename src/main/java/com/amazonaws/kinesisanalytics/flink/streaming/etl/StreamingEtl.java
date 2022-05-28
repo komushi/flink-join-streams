@@ -84,6 +84,8 @@ public class StreamingEtl {
 		
 		int FLASHBACK_LENGTH = Integer.parseInt(parameter.get("FLASHBACK_LENGTH"));
 
+		Boolean IS_FASTFORWARD = Boolean.valueOf(parameter.get("IS_FASTFORWARD"));
+
 		int INTERVAL_EVENT_TYPE1 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE1"));
 		int INTERVAL_EVENT_TYPE2 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE2"));
 		int INTERVAL_EVENT_TYPE3 = Integer.parseInt(parameter.get("INTERVAL_EVENT_TYPE3"));
@@ -110,9 +112,9 @@ public class StreamingEtl {
 			// 	.setParallelism(32)
 			// 	.name("Kinesis source");
 		} else {
-			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1, FLASHBACK_LENGTH, DELAY_EVENT_TYPE1)).name("events_first");
-			events_second = env.addSource(IisSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2, FLASHBACK_LENGTH, DELAY_EVENT_TYPE2)).name("events_second");
-			events_third = env.addSource(SmsSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3, FLASHBACK_LENGTH, DELAY_EVENT_TYPE3)).name("events_third");
+			events_first = env.addSource(CarSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE1, FLASHBACK_LENGTH, DELAY_EVENT_TYPE1, IS_FASTFORWARD)).name("events_first");
+			events_second = env.addSource(IisSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE2, FLASHBACK_LENGTH, DELAY_EVENT_TYPE2, IS_FASTFORWARD)).name("events_second");
+			events_third = env.addSource(SmsSource.create(NUM_OF_CARS, INTERVAL_EVENT_TYPE3, FLASHBACK_LENGTH, DELAY_EVENT_TYPE3, IS_FASTFORWARD)).name("events_third");
 		}
 
 		DataStream<Row> inputStream = (events_first.union(events_second)).union(events_third);
